@@ -1,29 +1,39 @@
 name: CI
 on:
-  - push
-  - pull_request
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
+    env:
+      JULIA_NUM_THREADS: ${{ matrix.threads }}
     strategy:
       fail-fast: false
       matrix:
         version:
-          - '1.0'
-          - '1.11'
-          - 'nightly'
+          - '1.10'
+          - '1'
+          #- 'nightly'
         os:
           - ubuntu-latest
         arch:
           - x64
+        threads: [1, 2]
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: actions/cache@v1
+      - uses: actions/cache@v4
         env:
           cache-name: cache-artifacts
         with:
@@ -35,3 +45,19 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+  docs:
+      name: Documentation
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: julia-actions/setup-julia@v2
+          with:
+            version: '1'
+        - name: Install dependencies
+          run: julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
+        - name: Build and deploy documentation
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+          run: julia --project=docs/ docs/make.jl
+      needs: test # The docs job will wait until the test job is successful.

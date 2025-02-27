@@ -1,9 +1,9 @@
 using Test, Pools
 import Pools: create, finalize!, update!, validate
 
-@testset "Pools.jl" begin
-    create(::Type{Int}) = rand(1:10)
+create(::Type{Int}) = rand(1:10)
 
+@testset "Pools.jl" begin
     n = 5
     pool = Pool{Int}(n)
 

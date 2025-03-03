@@ -8,6 +8,7 @@ This example demonstrates how to use `Pools.jl` to manage a pool of database con
 
 ```julia
 using Pools, Redis
+import Pools: create # Functions to be extended
 
 # Implement the required functions
 create(::Type{RedisConnection}) = RedisConnection(host = "localhost", port = 6379, db = 3)
@@ -22,10 +23,12 @@ withresource(pool) do conn
 end # The connection is automatically released back to the pool here
 
 # Or, acquire and release manually (less recommended):
-conn = Pools.acquire!(pool)
+conn = acquire!(pool)
 println("Acquired connection")
+# ... use instance to extract the resource ...
+ping(instance(conn))
 # ... use the connection ...
-Pools.release!(pool, conn)
+release!(pool, conn)
 
 # Drain the pool (release and finalize all resources)
 drain!(pool)

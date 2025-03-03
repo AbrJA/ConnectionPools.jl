@@ -4,7 +4,7 @@
 
 ## Key Features
 
-*   **Generic:**  Works with any resource type `T`.  You define how to create, validate, update, and finalize resources, and `Pools.jl` handles the rest.
+*   **Generic:**  Works with any resource type `T`.  You define how to create, check, change, and clean resources, and `Pools.jl` handles the rest.
 *   **Thread-safe:**  All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
 *   **Resource Management:**  Handles resource creation, validation, allocation, and deallocation, limiting the number of resources in use concurrently.
 *   **Automatic Cleanup:** Provides mechanisms for cleaning up resources when they are no longer needed (e.g., when the pool is drained or when resources fail validation).
@@ -20,6 +20,7 @@
 
 ```julia
 using Pools, Redis
+import Pools: create # Functions to be extended
 
 # Implement the required functions
 create(::Type{RedisConnection}) = RedisConnection(host = "localhost", port = 6379, db = 3)
@@ -34,10 +35,10 @@ withresource(pool) do conn
 end # The connection is automatically released back to the pool here
 
 # Or, acquire and release manually (less recommended):
-conn = Pools.acquire!(pool)
+conn = acquire!(pool)
 println("Acquired connection")
 # ... use the connection ...
-Pools.release!(pool, conn)
+release!(pool, conn)
 
 # Drain the pool (release and finalize all resources)
 drain!(pool)

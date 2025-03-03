@@ -14,32 +14,29 @@ Resources managed by `Pools.jl` go through a specific lifecycle:
 
 1.  **Creation:** New resources are created using the `create(::Type{T})` function.
 2.  **Acquisition:** Resources are acquired from the pool using the `acquire!(pool::Pool{T})` function.
-3.  **Validation:** Before a resource is given to a user, it is validated using the `validate(resource::T)` function to ensure it is still valid.
+3.  **Validation:** Before a resource is given to a user, it is validated using the `check(resource::T)` function to ensure it is still valid.
 4.  **Usage:** The resource is used by the application.
-5.  **Update:** Before a resource is returned to the pool, its state can be updated using the `update(resource::T)` function.
-6.  **Release:** Resources are returned to the pool using the `release!(pool::Pool{T}, resource::T)` function.
-7.  **Finalization:** Resources are finalized (cleaned up) using the `finalize(resource::T)` function when they are no longer needed by the pool (e.g., during pool draining or when they fail validation).
+5.  **Update:** Before a resource is returned to the pool, its state can be updated using the `change!(resource::T)` function.
+6.  **Release:** Resources are returned to the pool using the `release!(pool::Pool{T}, resource::Resource{T})` function.
+7.  **Finalization:** Resources are finalized (cleaned up) using the `clean!(resource::T)` function when they are no longer needed by the pool (e.g., during pool draining or when they fail validation).
 
 ## Using the Pool
 
 ### Creating a Pool
 
-To create a resource pool, you need to define your resource type `T` and implement the `create`, `validate`, `update`, and `finalize` functions for that type.  Then, you can create a pool using the `Pool{T}(limit::Int)` constructor.
+To create a resource pool, you need to define your resource type `T` and implement the `create`, `check`, `change!`, and `clean!` functions for that type.  Then, you can create a pool using the `Pool{T}(limit::Int)` constructor.
 
 ```julia
 using Pools
-
-struct Resource # Define your resource type
-    # ... resource data
-end
+import Pools: create, check, change!, clean!
 
 # Implement the required functions
-create(::Type{Resource}) = Resource()
-update(resource::Resource) = println("Resource updated") # How to update
-validate(resource::Resource) = println("Resource validated") # How to validate
-finalize(resource::Resource) = println("Resource finalized") # How to finalize
+create(::Type{T}) = Resource()
+check(::T) = println("Resource validated") # How to validate
+change!(::T) = println("Resource updated") # How to update
+clean!(::T) = println("Resource finalized") # How to finalize
 
-pool = Pool{Resource}(5) # Create a pool with a maximum of 5 resources
+pool = Pool{T}(5) # Create a pool with a maximum of 5 resources
 ```
 
 ### Acquiring a Resource
@@ -53,7 +50,7 @@ resource = acquire!(pool)
 
 ### Releasing a Resource
 
-To release a resource back to the pool, use the release!(pool::Pool{T}, resource::T) function.
+To release a resource back to the pool, use the release!(pool::Pool{T}, resource::Resource{T}) function.
 
 ```julia
 release!(pool, resource)

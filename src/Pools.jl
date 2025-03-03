@@ -1,12 +1,48 @@
 module Pools
 
     import Base: show
-    export Pool, free, taken, limit, acquire!, release!, drain!, withresource, create, finalize!, update!, validate
+    export Pool, instance, free, taken, limit, acquire!, release!, drain!, withresource, create, clean!, change!, check
+
+    abstract type AbstractPool end
+
+    """
+    Resource{T}
+
+    A wrapper struct for instances of type `T` stored in a `Pool`.
+
+    Each instance in the pool is wrapped in a `Resource` which provides a unique identifier.
+
+    # Fields
+
+    *   `id::Int`: A unique identifier for the instance.
+    *   `instance::T`: The actual instance of type `T`.
+    """
+    struct Resource{T}
+        id::Int
+        instance::T
+    end
+
+    """
+    instance(resource::Resource) -> T
+
+    Return the instance stored in a `Resource`.
+
+    This function extracts the instance of type `T` from a `Resource`.
+
+    # Arguments
+
+    *   `resource::Resource`: The `Resource` containing the instance.
+
+    # Returns
+
+    The instance of type `T` stored in the `Resource`.
+    """
+    instance(resource::Resource) = resource.instance
 
     """
     create(::Type{T}) where T -> T
 
-    Create a new resource of type `T`.
+    Create a new instance of type `T`.
 
     This function is called automatically by the pool when a new resource is needed (e.g., when a resource is acquired and the pool is empty or below its limit).  You *must* implement this method for any type `T` that you want to store in a `Pool`.
 
@@ -40,84 +76,84 @@ module Pools
     create(::Type{T}) where T = error("create not implemented for $(T)")
 
     """
-    finalize!(resource::T) where T
+    clean!(resource::T) where T
 
     Clean up resources associated with a resource of type `T`.
 
     This function is called automatically by the pool in the following situations:
 
-    *   When a resource fails validation (as determined by the `validate` function).
+    *   When a resource fails validation (as determined by the `check` function).
     *   When a resource is removed from the pool (e.g., during pool draining or when the pool's limit is reduced).
 
     You *should* implement this method to release any external resources held by the resource (e.g., closing connections, freeing memory, etc.).  If you do not implement this method, the default implementation will do nothing.
 
     # Arguments
 
-    *   `resource::T`: The resource to finalize.
+    *   `resource::T`: The resource to clean up.
 
     # Generic Method
 
-    A generic `finalize!(::T) where T` method is provided, which does nothing.  This serves as a default implementation so that if you do not define a specific `finalize!` method for your resource type, no error will be thrown.  However, it is *strongly recommended* that you implement a specific `finalize!` method if your resource requires any cleanup.
+    A generic `clean!(::T) where T` method is provided, which does nothing. It is *strongly recommended* that you implement a specific `clean!` method if your resource requires any cleanup.
 
     # Example
 
     ```julia
     using Pools, Redis, Dates
-    import Pools: create, finalize!
+    import Pools: create, clean!
 
     struct Connection
         client::RedisConnection
         timestamp::DateTime
     end
 
-    function finalize!(redis::Connection)
+    function clean!(redis::Connection)
         Redis.disconnect(redis.client)
     end
     ```
     """
-    function finalize!(::T) where T end
+    function clean!(::T) where T end
 
     """
-    update!(resource::T) where T
+    change!(resource::T) where T
 
-    Refresh the state of a resource of type `T` during releasing before it is reused.
+    Change the state of a resource of type `T` during releasing before it is reused.
 
-    This function is called automatically by the pool when a resource is returned to the pool via `release!`.  It provides an opportunity to update the resource's internal state, such as resetting connection parameters, updating timestamps, etc.
+    This function is called automatically by the pool when a resource is returned to the pool via `release!`.  It provides an opportunity to update the resource's internal state, such as resetting connection parameters, change timestamps, etc.
 
-    You *should* implement this method if your resource requires any state updates before it can be reused.  If no update is needed, you can leave this method unimplemented, and the default implementation will do nothing.
+    You *should* implement this method if your resource requires any state changes before it can be reused.  If no update is needed, you can leave this method unimplemented, and the default implementation will do nothing.
 
     # Arguments
 
-    *   `resource::T`: The resource to update.
+    *   `resource::T`: The resource to modify.
 
     # Generic Method
 
-    A generic `update!(::T) where T` method is provided, which does nothing. This serves as a default implementation so that if you do not define a specific `update!` method for your resource type. However, it is *strongly recommended* that you implement a specific `update!` method if your resource requires any state updates.
+    A generic `change!(::T) where T` method is provided, which does nothing. This serves as a default implementation so that if you do not define a specific `change!` method for your resource type. However, it is *strongly recommended* that you implement a specific `change!` method if your resource requires any state changes.
 
     # Example
 
     ```julia
     using Pools, Redis, Dates
-    import Pools: create, update!
+    import Pools: create, change!
 
     mutable struct Connection
         client::RedisConnection
         timestamp::DateTime
     end
 
-    function update!(redis::Connection)
+    function change!(redis::Connection)
         redis.timestamp = now()
     end
     ```
     """
-    function update!(::T) where T end
+    function change!(::T) where T end
 
     """
-    validate(resource::T) where T
+    check(resource::T) where T
 
     Check the validity of a resource of type `T`.
 
-    This function is called automatically by the pool during resource acquisition (`acquire!`).  If `validate` fails, the resource is considered invalid, and the pool will attempt to create a new resource (or retrieve another free resource).  It is essential to implement this method to ensure that the pool only provides valid resources to users.
+    This function is called automatically by the pool during resource acquisition (`acquire!`).  If `check` fails, the resource is considered invalid, and the pool will attempt to create a new resource (or retrieve another free resource).  It is essential to implement this method to ensure that the pool only provides valid resources to users.
 
     # Arguments
 
@@ -125,32 +161,32 @@ module Pools
 
     # Generic Method
 
-    A generic `validate(::T) where T` method is provided, which does nothing.  This means that if you do not define a specific `validate` method for your resource type, all resources will be considered valid.  While this might seem convenient, it is *strongly recommended* that you implement a specific `validate` method that performs appropriate checks for your resource type.  Relying on the generic method without proper validation can lead to unexpected errors and resource leaks.
+    A generic `check(::T) where T` method is provided, which does nothing.  This means that if you do not define a specific `check` method for your resource type, all resources will be considered valid.  While this might seem convenient, it is *strongly recommended* that you implement a specific `check` method that performs appropriate checks for your resource type.  Relying on the generic method without proper validation can lead to unexpected errors and resource leaks.
 
     # Example
 
     ```julia
     using Pools, Redis, Dates
-    import Pools: create, validate
+    import Pools: create, check
 
     struct Connection
         client::RedisConnection
         timestamp::DateTime
     end
 
-    function validate(redis::Connection)
+    function check(redis::Connection)
         ping(redis.client)
     end
     ```
     """
-    function validate(::T) where T end
+    function check(::T) where T end
 
     """
     Pool{T}(limit::Int)
 
     A thread-safe resource pool manager for resources of type `T`.
 
-    This struct implements a resource pool, managing the acquisition and release of resources with a maximum concurrency limit.  It's designed to be used with various resource types, such as database connections, file handles, or other objects that need to be managed and reused efficiently.
+    This struct implements a resource pool, managing the acquisition and release of resources with a maximum concurrency limit.  It's designed to be used with various resource types, such as database connections or other objects that need to be managed and reused efficiently.
 
     # Type Parameters
 
@@ -159,8 +195,8 @@ module Pools
     # Fields
 
     *   `limit::Int`: The maximum number of resources that can be in use concurrently.
-    *   `free::Vector{T}`: A vector containing the currently available (free) resources in the pool. Resources are typically stored and retrieved in a FIFO (First-In, First-Out) manner.
-    *   `taken::Set{T}`: A set containing the resources that are currently in use (taken) by users.
+    *   `free::Vector{Resource{T}}`: A vector containing the currently available (free) resources in the pool.
+    *   `taken::Set{Resource{T}}`: A set containing the resources that are currently in use (taken) by users.
     *   `lock::ReentrantLock`: A reentrant lock used for thread safety.  All operations on the pool are protected by this lock.
     *   `condition::Threads.Condition`: A condition variable used to notify waiting tasks when a resource becomes available.
 
@@ -189,10 +225,10 @@ module Pools
     pool = Pool{Connection}(3)
     ```
     """
-    struct Pool{T}
+    struct Pool{T} # <: AbstractPool
         limit::Int
-        free::Vector{T}
-        taken::Set{T}
+        free::Vector{Resource{T}}
+        taken::Set{Resource{T}}
         lock::ReentrantLock
         condition::Threads.Condition
 
@@ -200,7 +236,7 @@ module Pools
             limit > 0 || throw(ArgumentError("limit must be positive"))
             lock = ReentrantLock()
             condition = Threads.Condition(lock)
-            new{T}(limit, Vector{T}(), Set{T}(), lock, condition)
+            new{T}(limit, Vector{Resource{T}}(), Set{Resource{T}}(), lock, condition)
         end
     end
 
@@ -317,7 +353,7 @@ module Pools
     end
 
     """
-    acquire!(pool::Pool{T}) where T -> T
+    acquire!(pool::Pool{T}) where T -> Resource{T}
 
     Acquire a resource from the pool.
 
@@ -329,12 +365,12 @@ module Pools
 
     # Returns
 
-    A resource of type `T`.
+    A resource of type `T` wrapped in a `Resource{T}`.
 
     # Throws
 
     *   `MethodError`: If the `create(::Type{T})` function is not implemented for the resource type `T`.  This function is essential for the `Pool` to create new resources when needed.  See the documentation for `create` for more details.
-    *   Exceptions thrown by the `validate(resource::T)` function. If `validate` throws an exception, the resource is considered invalid and discarded.
+    *   Exceptions thrown by the `check(resource::T)` function. If `check` throws an exception, the resource is considered invalid and discarded.
 
     # Thread Safety
 
@@ -351,7 +387,7 @@ module Pools
     end
 
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
-    validate(redis::Connection) = ping(redis.client)
+    check(redis::Connection) = ping(redis.client)
 
     pool = Pool{Connection}(3)
     conn = acquire!(pool)
@@ -361,18 +397,18 @@ module Pools
         lock(pool.lock) do
             while true
                 while !isempty(pool.free)
-                    resource = popfirst!(pool.free)
+                    resource = pop!(pool.free)
                     try
-                        validate(resource)
+                        check(instance(resource))
                     catch
-                        finalize!(resource)
+                        clean!(instance(resource))
                         continue
                     end
                     push!(pool.taken, resource)
                     return resource
                 end
                 if length(pool.taken) < pool.limit
-                    resource = create(T)
+                    resource = Resource(length(pool.taken) + 1, create(T))
                     push!(pool.taken, resource)
                     return resource
                 end
@@ -382,21 +418,21 @@ module Pools
     end
 
     """
-    release!(pool::Pool{T}, resource::T) where T
+    release!(pool::Pool{T}, resource::Resource{T})
 
     Release a resource back to the pool.
 
-    This function returns a resource to the pool, making it available for reuse.  It updates the resource's state (using the `update!` function) and notifies any waiting tasks that a resource has become available.
+    This function returns a resource to the pool, making it available for reuse.  It changes the resource's state (using the `change!` function) and notifies any waiting tasks that a resource has become available.
 
     # Arguments
 
     *   `pool::Pool{T}`: The resource pool to release the resource to.
-    *   `resource::T`: The resource to release.
+    *   `resource::Resource{T}`: The resource to release.
 
     # Throws
 
     *   `ArgumentError`: If the provided `resource` does not belong to the pool (i.e., it was not acquired from this pool).
-    *   Exceptions thrown by the `update!(resource::T)` function.
+    *   Exceptions thrown by the `change!(resource::T)` function.
 
     # Thread Safety
 
@@ -413,18 +449,18 @@ module Pools
     end
 
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
-    update!(redis::Connection) = redis.timestamp = now()
+    change!(redis::Connection) = redis.timestamp = now()
 
     pool = Pool{Connection}(3)
     conn = acquire!(pool)
     release!(pool, conn)
     ```
     """
-    function release!(pool::Pool{T}, resource::T) where T
+    function release!(pool::Pool{T}, resource::Resource{T}) where T
         lock(pool.lock) do
             if resource in pool.taken
                 delete!(pool.taken, resource)
-                update!(resource)
+                change!(instance(resource))
                 push!(pool.free, resource)
                 notify(pool.condition, all = false)
             else
@@ -452,7 +488,7 @@ module Pools
     # Throws
 
     *   Exceptions thrown by the function `f`.  These exceptions will be propagated after the resource is released.
-    *   `MethodError`: If the `create(::Type{T})` or `validate(resource::T)` functions are not implemented for the resource type `T`.
+    *   `MethodError`: If the `create(::Type{T})` or `check(resource::T)` functions are not implemented for the resource type `T`.
 
     # Example
 
@@ -474,10 +510,10 @@ module Pools
     end
     ```
     """
-    function withresource(f, pool::Pool)
+    function withresource(f, pool::Pool{T}) where T
         resource = acquire!(pool)
         try
-            return f(resource)
+            return f(instance(resource))
         finally
             release!(pool, resource)
         end
@@ -509,7 +545,7 @@ module Pools
     end
 
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
-    finalize!(redis::Connection) = Redis.disconnect(redis.client)
+    clean!(redis::Connection) = Redis.disconnect(redis.client)
 
     pool = Pool{Connection}(3)
 
@@ -526,7 +562,7 @@ module Pools
                 wait(pool.condition)
             end
             while !isempty(pool.free)
-                finalize!(popfirst!(pool.free))
+                clean!(instance(pop!(pool.free)))
             end
         end
     end

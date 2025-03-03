@@ -1,5 +1,5 @@
 using Test, Pools
-import Pools: create, finalize!, update!, validate
+import Pools: create, clean!, change!, check
 
 create(::Type{Int}) = rand(1:10)
 
@@ -12,7 +12,7 @@ create(::Type{Int}) = rand(1:10)
     @test taken(pool) == 0
 
     value = acquire!(pool)
-    @test value isa Int
+    @test instance(value) isa Int
     @test free(pool) == 0
     @test taken(pool) == 1
 

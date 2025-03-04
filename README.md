@@ -10,7 +10,7 @@ import Pkg; Pkg.add("Pools")
 
 ## General 
 
-This package is built to manage `Pool` of objects of any `Type`.
+This package is built to manage `Pool` of objects of any `Type` _(Numbers, Structs, Connections, etc)_
 
 It relies on the custom implementation of the following functions:
 
@@ -23,13 +23,29 @@ clean!(::T) # How to finalize it
 
 At least `create` function is required.
 
-## Key Features
+## Features
 
-- Generic:  Works with any resource type `T`.  You define how to create, check, change, and clean resources, and `Pools.jl` handles the rest.
-- Thread-safe: All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
-- Resource Management: Handles resource creation, validation, allocation, and deallocation, limiting the number of resources in use concurrently.
-- Automatic Cleanup: Provides mechanisms for cleaning up resources when they are no longer needed (e.g., when the pool is drained or when resources fail validation).
-- Convenient `withresource` Function: Simplifies the process of acquiring and using resources, ensuring they are automatically released back to the pool, even if errors occur.
+- **Generic:**  Works with any resource type `T`.  You define how to manage resources, and `Pools.jl` handles the rest.
+- **Thread-safe:** All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
+- **Memory-safe:** Handles resource allocation, and deallocation, limiting the number of resources in use concurrently.
+- **Convenient:** `withresource` Function simplifies the process of acquiring and using resources.
+
+## Example: Generic
+
+Create a `Pool` of `Int`s
+
+```
+using Pools
+import create
+
+create(::Type{Int}) = rand(1:10)
+
+pool = Pool{Int}(5)
+
+withresource(pool) do value
+    println(value)
+end 
+```
 
 ## Example: Redis
 

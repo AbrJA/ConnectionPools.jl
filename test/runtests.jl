@@ -1,7 +1,11 @@
 using ConnectionPools, Test
 import ConnectionPools: create, clean!, change!, check
 
-create(::Type{Int}) = rand(1:10)
+counter = Ref(0)
+function create(::Type{Int})
+    counter[] += 1
+    return counter[]
+end
 
 @testset "Pools.jl" begin
     n = max(2, Threads.nthreads())
@@ -13,7 +17,7 @@ create(::Type{Int}) = rand(1:10)
 
     value1 = acquire!(pool)
     value2 = acquire!(pool)
-    @test instance(value1) isa Int
+    @test value1 isa Int
     @test free(pool) == 0
     @test taken(pool) == 2
 

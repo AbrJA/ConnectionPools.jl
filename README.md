@@ -30,7 +30,9 @@ At least `create` function is required.
 - **Memory-safe:** Handles resource allocation, and deallocation, limiting the number of resources in use concurrently.
 - **Convenient:** `withresource` Function simplifies the process of acquiring and using resources.
 
-## Example: Generic
+## Examples 
+
+### Generic
 
 Create a `Pool` of `Int`s
 
@@ -47,7 +49,7 @@ withresource(pool) do value
 end 
 ```
 
-## Example: Redis
+### Redis
 
 To create a `Pool` of `Redis` connections:
 

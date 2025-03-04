@@ -1,11 +1,11 @@
 using Documenter
-using Pools
+using ConnectionPools
 
 makedocs(
-    modules = [Pools],
+    modules = [ConnectionPools],
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://AbrJA.github.io/Pools.jl",
+        canonical = "https://AbrJA.github.io/ConnectionPools.jl",
     ),
     pages = [
         "Introduction" => "index.md",
@@ -13,12 +13,12 @@ makedocs(
         "Examples" => "examples.md",
         "API" => "api.md",
     ],
-    repo = Remotes.GitHub("AbrJA", "Pools.jl"),
-    sitename = "Pools.jl",
+    repo = Remotes.GitHub("AbrJA", "ConnectionPools.jl"),
+    sitename = "ConnectionPools.jl",
     authors = "Abraham Jaimes"
 )
 
 deploydocs(
-    repo = Remotes.GitHub("AbrJA", "Pools.jl"),
+    repo = Remotes.GitHub("AbrJA", "ConnectionPools.jl"),
     push_preview = true
 )

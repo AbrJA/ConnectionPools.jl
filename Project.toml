@@ -1,4 +1,4 @@
-name = "Pools"
+name = "ConnectionPools"
 uuid = "028224b0-1fcc-4ce4-9494-c68607c3a20e"
 authors = ["Abraham Jaimes"]
 version = "0.1.0"

@@ -1,6 +1,6 @@
 # API
 
 ```@autodocs
-Modules = [Pools]
-Pages   = ["Pools.jl"]
+Modules = [ConnectionPools]
+Pages   = ["ConnectionPools.jl"]
 ```

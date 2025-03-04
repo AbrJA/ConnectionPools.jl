@@ -13,20 +13,20 @@
 ## Installation
 
 ```julia
-] add Pools
+] add ConnectionPools
 ```
 
 ## Quick Start
 
 ```julia
-using Pools, Redis
-import Pools: create # Functions to be extended
+using ConnectionPools, Redis
+import ConnectionPools: create # Functions to be extended
 
 # Implement the required functions
 create(::Type{RedisConnection}) = RedisConnection(host = "localhost", port = 6379, db = 3)
 
 # Create a pool of connections with a maximum of 5 connections
-pool = Pool{RedisConnection}(5)
+pool = ConnectionPool{RedisConnection}(5)
 
 # Use a connection from the pool (using withresource is recommended)
 withresource(pool) do conn
@@ -37,7 +37,7 @@ end # The connection is automatically released back to the pool here
 # Or, acquire and release manually (less recommended):
 conn = acquire!(pool)
 # ... use the connection ...
-ping(instance(conn))
+ping(conn)
 release!(pool, conn)
 
 # Drain the pool (release and finalize all resources)

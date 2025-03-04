@@ -1,11 +1,11 @@
-using Test, Pools
-import Pools: create, clean!, change!, check
+using ConnectionPools, Test
+import ConnectionPools: create, clean!, change!, check
 
 create(::Type{Int}) = rand(1:10)
 
 @testset "Pools.jl" begin
     n = max(2, Threads.nthreads())
-    pool = Pool{Int}(n)
+    pool = GenericPool{Int}(n)
 
     @test limit(pool) == n
     @test free(pool) == 0

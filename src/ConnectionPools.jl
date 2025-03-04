@@ -1,41 +1,9 @@
-module Pools
+module ConnectionPools
 
     import Base: show
-    export Pool, instance, free, taken, limit, acquire!, release!, drain!, withresource, create, clean!, change!, check
+    export GenericPool, ConnectionPool, free, taken, limit, acquire!, release!, drain!, withresource, create, clean!, change!, check
 
-    """
-    Resource{T}
-
-    A wrapper struct for instances of type `T` stored in a `Pool`.
-
-    Each instance in the pool is wrapped in a `Resource` which provides a unique identifier.
-
-    # Fields
-
-    *   `id::Int`: A unique identifier for the instance.
-    *   `instance::T`: The actual instance of type `T`.
-    """
-    struct Resource{T}
-        id::Int
-        instance::T
-    end
-
-    """
-    instance(resource::Resource) -> T
-
-    Return the instance stored in a `Resource`.
-
-    This function extracts the instance of type `T` from a `Resource`.
-
-    # Arguments
-
-    *   `resource::Resource`: The `Resource` containing the instance.
-
-    # Returns
-
-    The instance of type `T` stored in the `Resource`.
-    """
-    instance(resource::Resource) = resource.instance
+    abstract type Pool{T} end
 
     """
     create(::Type{T}) where T -> T
@@ -180,7 +148,7 @@ module Pools
     function check(::T) where T end
 
     """
-    Pool{T}(limit::Int)
+    GenericPool{T}(limit::Int)
 
     A thread-safe resource pool manager for resources of type `T`.
 
@@ -193,15 +161,15 @@ module Pools
     # Fields
 
     *   `limit::Int`: The maximum number of resources that can be in use concurrently.
-    *   `free::Vector{Resource{T}}`: A vector containing the currently available (free) resources in the pool.
-    *   `taken::Set{Resource{T}}`: A set containing the resources that are currently in use (taken) by users.
+    *   `free::Vector{T}`: A vector containing the currently available (free) resources in the pool.
+    *   `taken::Set{T}`: A set containing the resources that are currently in use (taken) by users.
     *   `lock::ReentrantLock`: A reentrant lock used for thread safety.  All operations on the pool are protected by this lock.
     *   `condition::Threads.Condition`: A condition variable used to notify waiting tasks when a resource becomes available.
 
     # Constructor
 
     ```julia
-    Pool{T}(limit::Int) where T
+    GenericPool{T}(limit::Int) where T
     Creates a new resource pool for resources of type T with a maximum concurrency limit of limit.
 
     # Arguments
@@ -220,23 +188,40 @@ module Pools
         timestamp::DateTime
     end
 
-    pool = Pool{Connection}(3)
+    pool = GenericPool{Connection}(3)
     ```
     """
-    struct Pool{T}
+    struct GenericPool{T} <: Pool{T}
         limit::Int
-        free::Vector{Resource{T}}
-        taken::Set{Resource{T}}
+        free::Vector{T}
+        taken::Set{T}
         lock::ReentrantLock
         condition::Threads.Condition
 
-        function Pool{T}(limit::Int) where T
+        function GenericPool{T}(limit::Int) where T
             limit > 0 || throw(ArgumentError("limit must be positive"))
             lock = ReentrantLock()
             condition = Threads.Condition(lock)
-            new{T}(limit, Vector{Resource{T}}(), Set{Resource{T}}(), lock, condition)
+            new{T}(limit, Vector{T}(), Set{T}(), lock, condition)
         end
     end
+
+    """
+    ConnectionPool{T}(limit::Int) where T -> GenericPool{T}
+
+    Alias for `GenericPool{T}`.
+
+    This function is an alias for `GenericPool{T}` and is provided for convenience.  It creates a new resource pool for resources of type `T` with a maximum concurrency limit of `limit`.
+
+    # Arguments
+
+    *   `limit::Int`: The maximum number of resources allowed in the pool. Must be a positive integer.
+
+    # Throws
+
+    *   `ArgumentError`: If `limit` is not a positive integer.
+    """
+    ConnectionPool = GenericPool
 
     Base.show(io::IO, pool::Pool{T}) where T = begin
         lock(pool.lock)  do
@@ -270,7 +255,7 @@ module Pools
 
     create(::Type{Int}) = rand(1:10)
 
-    pool = Pool{Int}(3)
+    pool = GenericPool{Int}(3)
     free(pool)
     ```
     """
@@ -306,7 +291,7 @@ module Pools
 
     create(::Type{Int}) = rand(1:10)
 
-    pool = Pool{Int}(3)
+    pool = GenericPool{Int}(3)
     taken(pool)
     ```
     """
@@ -342,7 +327,7 @@ module Pools
 
     create(::Type{Int}) = rand(1:10)
 
-    pool = Pool{Int}(5)
+    pool = GenericPool{Int}(5)
     limit(pool)
     ```
     """
@@ -351,7 +336,7 @@ module Pools
     end
 
     """
-    acquire!(pool::Pool{T}) where T -> Resource{T}
+    acquire!(pool::Pool{T}) where T -> T
 
     Acquire a resource from the pool.
 
@@ -363,7 +348,7 @@ module Pools
 
     # Returns
 
-    A resource of type `T` wrapped in a `Resource{T}`.
+    A resource of type `T`.
 
     # Throws
 
@@ -387,7 +372,7 @@ module Pools
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
     check(redis::Connection) = ping(redis.client)
 
-    pool = Pool{Connection}(3)
+    pool = ConnectionPool{Connection}(3)
     conn = acquire!(pool)
     ```
     """
@@ -397,16 +382,16 @@ module Pools
                 while !isempty(pool.free)
                     resource = pop!(pool.free)
                     try
-                        check(instance(resource))
+                        check(resource)
                     catch
-                        clean!(instance(resource))
+                        clean!(resource)
                         continue
                     end
                     push!(pool.taken, resource)
                     return resource
                 end
                 if length(pool.taken) < pool.limit
-                    resource = Resource(length(pool.taken) + 1, create(T))
+                    resource = create(T)
                     push!(pool.taken, resource)
                     return resource
                 end
@@ -416,7 +401,7 @@ module Pools
     end
 
     """
-    release!(pool::Pool{T}, resource::Resource{T})
+    release!(pool::Pool{T}, resource::T)
 
     Release a resource back to the pool.
 
@@ -425,7 +410,7 @@ module Pools
     # Arguments
 
     *   `pool::Pool{T}`: The resource pool to release the resource to.
-    *   `resource::Resource{T}`: The resource to release.
+    *   `resource::T`: The resource to release.
 
     # Throws
 
@@ -449,16 +434,16 @@ module Pools
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
     change!(redis::Connection) = redis.timestamp = now()
 
-    pool = Pool{Connection}(3)
+    pool = ConnectionPool{Connection}(3)
     conn = acquire!(pool)
     release!(pool, conn)
     ```
     """
-    function release!(pool::Pool{T}, resource::Resource{T}) where T
+    function release!(pool::Pool{T}, resource::T) where T
         lock(pool.lock) do
             if resource in pool.taken
                 delete!(pool.taken, resource)
-                change!(instance(resource))
+                change!(resource)
                 push!(pool.free, resource)
                 notify(pool.condition, all = false)
             else
@@ -501,7 +486,7 @@ module Pools
 
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
 
-    pool = Pool{Connection}(3)
+    pool = ConnectionPool{Connection}(3)
 
     withresource(pool) do redis
         ping(redis.client)
@@ -511,7 +496,7 @@ module Pools
     function withresource(f, pool::Pool{T}) where T
         resource = acquire!(pool)
         try
-            return f(instance(resource))
+            return f(resource)
         finally
             release!(pool, resource)
         end
@@ -545,7 +530,7 @@ module Pools
     create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
     clean!(redis::Connection) = Redis.disconnect(redis.client)
 
-    pool = Pool{Connection}(3)
+    pool = ConnectionPool{Connection}(3)
 
     withresource(pool) do redis
         ping(redis.client)
@@ -560,7 +545,7 @@ module Pools
                 wait(pool.condition)
             end
             while !isempty(pool.free)
-                clean!(instance(pop!(pool.free)))
+                clean!(pop!(pool.free))
             end
         end
     end

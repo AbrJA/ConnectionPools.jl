@@ -27,8 +27,8 @@ Resources managed by `Pools.jl` go through a specific lifecycle:
 To create a resource pool, you need to define your resource type `T` and implement the `create`, `check`, `change!`, and `clean!` functions for that type.  Then, you can create a pool using the `Pool{T}(limit::Int)` constructor.
 
 ```julia
-using Pools
-import Pools: create, check, change!, clean!
+using ConnectionPools
+import ConnectionPools: create, check, change!, clean!
 
 # Implement the required functions
 create(::Type{T}) = T()
@@ -36,7 +36,7 @@ check(::T) = println("Resource validated") # How to validate
 change!(::T) = println("Resource updated") # How to update
 clean!(::T) = println("Resource finalized") # How to finalize
 
-pool = Pool{T}(5) # Create a pool with a maximum of 5 resources
+pool = ConnectionPool{T}(5) # Create a pool with a maximum of 5 resources
 ```
 
 ### Acquiring a Resource

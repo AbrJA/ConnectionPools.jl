@@ -31,7 +31,7 @@ using Pools
 import Pools: create, check, change!, clean!
 
 # Implement the required functions
-create(::Type{T}) = Resource()
+create(::Type{T}) = T()
 check(::T) = println("Resource validated") # How to validate
 change!(::T) = println("Resource updated") # How to update
 clean!(::T) = println("Resource finalized") # How to finalize

@@ -1,16 +1,16 @@
-# Pools
+# ConnectionPools
 
-[![Build Status](https://github.com/AbrJA/Pools.jl/workflows/CI/badge.svg)](https://github.com/AbrJA/Pools.jl/actions)
+[![Build Status](https://github.com/AbrJA/Pools.jl/workflows/CI/badge.svg)](https://github.com/AbrJA/ConnectionPools.jl/actions)
 
 ## Install
 
 ```
-import Pkg; Pkg.add("Pools")
+import Pkg; Pkg.add("ConnectionPools")
 ```
 
-## Purpose 
+## Goal
 
-This package is built to manage `Pool` of objects of any `Type` _(Numbers, Structs, Connections, etc)_
+**Pool** is a collection of reusable resources that can be efficiently managed and allocated to avoid the overhead of creating and destroying them repeatedly. This package is built to manage `Pool` of objects of any `Type` mainly focus on database connections.
 
 It relies on the custom implementation of the following functions:
 
@@ -25,81 +25,63 @@ At least `create` function is required.
 
 ## Features
 
-- **Generic:**  Works with any resource type `T`.  You define how to manage resources, and `Pools.jl` handles the rest.
+- **Generic:**  Works with any resource type `T`.  You define how to manage resources, and `ConnectionPools.jl` handles the rest.
 - **Thread-safe:** All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
 - **Memory-safe:** Handles resource allocation, and deallocation, limiting the number of resources in use concurrently.
-- **Convenient:** `withresource` Function simplifies the process of acquiring and using resources.
+- **Convenient:** Function `withresource` simplifies the process of acquiring and using resources.
 
 ## Examples 
 
-### Generic
-
-Create a `Pool` of `Int`s
-
-```
-using Pools
-import create
-
-create(::Type{Int}) = rand(1:10)
-
-pool = Pool{Int}(5)
-
-withresource(pool) do value
-    println(value)
-end 
-```
-
 ### Redis
 
-To create a `Pool` of `Redis` connections:
+To create a `ConnectionPool` of `Redis` connections:
 
 - Load the libraries:
 ```
-using Dates, Pools, Redis
+using ConnectionPools, Dates, Redis
 ```
 
-- Import the functions from `Pool` to be extended (just those needed):
+- Import the functions from `ConnectionPools` to be extended (just those needed):
 ```
-import Pools: create, check, change!, clean!
+import ConnectionPools: create, check, change!, clean!
 ```
 
-- Build the connections struct:
+- Build the `Resource` struct:
 ```
-mutable struct Connection
-    client::RedisConnection
+mutable struct Resource
+    conn::RedisConnection
     timestamp::DateTime
 end
 ```
 
-- Implement the required functions for `Type` `Connection`:
+- Implement the required functions for `Type` `Resource`:
 ```
-create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
-check(conn::Connection) = if now() > conn.timestamp + Minute(1) ping(conn.client) end
-change!(conn::Connection) = conn.timestamp = now()
-clean!(conn::Connection) = disconnect(conn.client)
+create(::Type{Resource}) = Resource(RedisConnection(host = "localhost", port = 6379, db = 3), now())
+check(resource::Resource) = if now() > resource.timestamp + Minute(1) ping(resource.conn) end
+change!(resource::Resource) = resource.timestamp = now()
+clean!(resource::Resource) = disconnect(resource.conn)
 ```
 
-- Create a `Pool` of `Connection`s with a limit of 5:
+- Create a `ConnectionPool` of `Connection`s with a limit of 5:
 ```
-pool = Pool{Connection}(5)
+pool = ConnectionPool{Resource}(5)
 ```
 
 - Use a connection from the pool (using withresource is recommended):
 ```
-withresource(pool) do conn
+withresource(pool) do resource
     # ... use the connection ...
-    get(conn.client, "key")
+    get(resource.conn, "key")
 end # The connection is automatically released back to the pool here
 ```
 
 - Acquire and release manually (less recommended):
 ```
-conn = acquire!(pool)
-# ... use instance to extract the resource because it is wrapped into Resource struct ...
+resource = acquire!(pool)
 try
-    get(instance(conn).client, "key")
+    get(resource.conn, "key")
 finally
-    release!(pool, conn)
+    release!(pool, resource)
 end
 ```
 
@@ -107,3 +89,4 @@ end
 ```
 drain!(pool)
 ```
+

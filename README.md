@@ -8,7 +8,7 @@
 import Pkg; Pkg.add("Pools")
 ```
 
-## General 
+## Purpose 
 
 This package is built to manage `Pool` of objects of any `Type` _(Numbers, Structs, Connections, etc)_
 

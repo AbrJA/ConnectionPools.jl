@@ -3,8 +3,6 @@ module Pools
     import Base: show
     export Pool, instance, free, taken, limit, acquire!, release!, drain!, withresource, create, clean!, change!, check
 
-    abstract type AbstractPool end
-
     """
     Resource{T}
 
@@ -225,7 +223,7 @@ module Pools
     pool = Pool{Connection}(3)
     ```
     """
-    struct Pool{T} # <: AbstractPool
+    struct Pool{T}
         limit::Int
         free::Vector{Resource{T}}
         taken::Set{Resource{T}}

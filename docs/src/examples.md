@@ -7,27 +7,33 @@ This page provides more detailed examples of how to use `Pools.jl` to manage dif
 This example demonstrates how to use `Pools.jl` to manage a pool of database connections using the `Redis.jl` package.
 
 ```julia
-using Pools, Redis
-import Pools: create # Functions to be extended
+using Dates, Pools, Redis
+import Pools: create, clean! # Functions to be extended
+
+mutable struct Connection
+    client::RedisConnection
+    timestamp::DateTime
+end
 
 # Implement the required functions
-create(::Type{RedisConnection}) = RedisConnection(host = "localhost", port = 6379, db = 3)
+create(::Type{Connection}) = Connection(RedisConnection(host = "localhost", port = 6379, db = 3), now())
+check(conn::Connection) = ping(conn.client)
+change!(conn::Connection) = conn.timestamp = now()
+clean!(conn::Connection) = disconnect(conn.client)
 
 # Create a pool of connections with a maximum of 5 connections
-pool = Pool{RedisConnection}(5)
+pool = Pool{Connection}(5)
 
 # Use a connection from the pool (using withresource is recommended)
 withresource(pool) do conn
-    ping(conn)
     # ... use the connection ...
+    get(conn.client, "key")
 end # The connection is automatically released back to the pool here
 
 # Or, acquire and release manually (less recommended):
 conn = acquire!(pool)
-println("Acquired connection")
-# ... use instance to extract the resource ...
-ping(instance(conn))
-# ... use the connection ...
+# ... use instance to extract the resource because it is wrapped ...
+get(instance(conn).client, "key")
 release!(pool, conn)
 
 # Drain the pool (release and finalize all resources)

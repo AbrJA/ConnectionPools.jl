@@ -36,8 +36,8 @@ end # The connection is automatically released back to the pool here
 
 # Or, acquire and release manually (less recommended):
 conn = acquire!(pool)
-println("Acquired connection")
 # ... use the connection ...
+ping(instance(conn))
 release!(pool, conn)
 
 # Drain the pool (release and finalize all resources)

@@ -19,6 +19,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = Remotes.GitHub("AbrJA", "ConnectionPools.jl"),
+    repo = "github.com/AbrJA/ConnectionPools.jl",
     push_preview = true
 )

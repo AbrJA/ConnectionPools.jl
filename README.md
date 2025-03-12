@@ -14,7 +14,7 @@ import Pkg; Pkg.add("ConnectionPools")
 
 It relies on the custom implementation of the following functions:
 
-```
+```julia
 create(::Type{T}) # How to create the resource
 check(::T) # How to check it
 change!(::T) # How to update it

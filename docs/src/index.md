@@ -1,10 +1,10 @@
 # Pools.jl
 
-`Pools.jl` provides a generic and thread-safe resource pooling mechanism for Julia.  It's designed to efficiently manage and reuse resources of any type `T`, such as database connections, network sockets, or other expensive-to-create objects.  This can significantly improve the performance of applications that require access to multiple resources concurrently.
+`ConnectionPools.jl` provides a generic and thread-safe resource pooling mechanism for Julia.  It's designed to efficiently manage and reuse resources of any type `T`, such as database connections, network sockets, or other expensive-to-create objects.  This can significantly improve the performance of applications that require access to multiple resources concurrently.
 
 ## Key Features
 
-*   **Generic:**  Works with any resource type `T`.  You define how to create, check, change, and clean resources, and `Pools.jl` handles the rest.
+*   **Generic:**  Works with any resource type `T`.  You define how to create, check, change, and clean resources, and `ConnectionPools.jl` handles the rest.
 *   **Thread-safe:**  All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
 *   **Resource Management:**  Handles resource creation, validation, allocation, and deallocation, limiting the number of resources in use concurrently.
 *   **Automatic Cleanup:** Provides mechanisms for cleaning up resources when they are no longer needed (e.g., when the pool is drained or when resources fail validation).

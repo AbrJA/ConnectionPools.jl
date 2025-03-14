@@ -32,6 +32,72 @@ At least `create` function is required.
 
 ## Examples
 
+### SQLite
+
+To create a `ConnectionPool` of `SQLite` connections:
+
+```julia
+using DBInterface, DataFrames, SQLite
+
+# Connect to SQLite database
+db = SQLite.DB("database.db")
+
+# Create table if it doesn't exist
+DBInterface.execute(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)")
+
+# Begin a transaction to speed up batch inserts
+DBInterface.execute(db, "BEGIN TRANSACTION")
+
+# Insert 1000 records into the users table
+for i in 1:1000
+    name = "User$i"
+    age = rand(20:60)  # Random age between 20 and 60
+    DBInterface.execute(db, "INSERT INTO users (name, age) VALUES (?, ?)", (name, age,))
+end
+
+# Commit transaction
+DBInterface.execute(db, "COMMIT")
+
+# Close database connection
+DBInterface.close!(db)
+```
+
+- Load the libraries
+```julia
+using ConnectionPools, DBInterface, DataFrames, SQLite
+```
+
+- Import the functions from `ConnectionPools` to be extended (just those needed):
+```julia
+import ConnectionPools: create, clean!
+```
+
+- Implement the required functions:
+```julia
+create(::Type{SQLite.DB}) = SQLite.DB("database.db")
+clean!(db::SQLite.DB) = DBInterface.close!(db)
+```
+
+- Create a `ConnectionPool` of `SQLite.DB` with a limit of 5:
+```julia
+pool = ConnectionPool{SQLite.DB}(5)
+```
+
+- Use the connections from the pool (using withresource is recommended):
+```julia
+@time Threads.@threads for i in 1:20
+    withresource(pool) do db
+        df = DBInterface.execute(db, "SELECT * FROM users LIMIT $i") |> DataFrame
+        @info "Thread $(Threads.threadid()) - Number of rows: $(nrow(df))"
+    end
+end
+```
+
+- Drain the pool (release and finalize all resources):
+```julia
+drain!(pool)
+```
+
 ### Redis
 
 To create a `ConnectionPool` of `Redis` connections:
@@ -41,7 +107,7 @@ To create a `ConnectionPool` of `Redis` connections:
 using ConnectionPools, Dates, Redis
 ```
 
-- Import the functions from `ConnectionPools` to be extended (just those needed):
+- Import the functions from `ConnectionPools` to be extended:
 ```julia
 import ConnectionPools: create, check, change!, clean!
 ```
@@ -67,7 +133,7 @@ clean!(resource::Resource) = disconnect(resource.conn)
 pool = ConnectionPool{Resource}(5)
 ```
 
-- Use a connection from the pool (using withresource is recommended):
+- Use a connection from the pool:
 ```julia
 withresource(pool) do resource
     # ... use the connection ...
@@ -85,8 +151,7 @@ finally
 end
 ```
 
-- Drain the pool (release and finalize all resources):
+- Drain the pool:
 ```julia
 drain!(pool)
 ```
-

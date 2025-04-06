@@ -4,7 +4,7 @@
 
 ## Install
 
-```
+```julia
 import Pkg; Pkg.add("ConnectionPools")
 ```
 

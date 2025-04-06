@@ -1,38 +1,59 @@
-using ConnectionPools, Test
+using ConnectionPools, DBInterface, DataFrames, SQLite, Test
 import ConnectionPools: create, clean!, change!, check
 
-counter = Ref(0)
-function create(::Type{Int})
-    counter[] += 1
-    return counter[]
+# Connect to SQLite database
+db = SQLite.DB("database.db")
+
+# Create table if it doesn't exist
+DBInterface.execute(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)")
+
+# Begin a transaction to speed up batch inserts
+DBInterface.execute(db, "BEGIN TRANSACTION")
+
+# Insert 1000 records into the users table
+for i in 1:1000
+    name = "User$i"
+    age = rand(20:60)  # Random age between 20 and 60
+    DBInterface.execute(db, "INSERT INTO users (name, age) VALUES (?, ?)", (name, age,))
 end
 
-@testset "Pools.jl" begin
+# Commit transaction
+DBInterface.execute(db, "COMMIT")
+
+# Close database connection
+DBInterface.close!(db)
+
+create(::Type{SQLite.DB}) = SQLite.DB("database.db")
+clean!(db::SQLite.DB) = DBInterface.close!(db)
+
+@testset "ConnectionPools.jl" begin
     n = max(2, Threads.nthreads())
-    pool = GenericPool{Int}(n)
+    pool = ConnectionPool{SQLite.DB}(n)
 
     @test limit(pool) == n
     @test free(pool) == 0
     @test taken(pool) == 0
 
-    value1 = acquire!(pool)
-    value2 = acquire!(pool)
-    @test value1 isa Int
+    db1 = acquire!(pool)
+    db2 = acquire!(pool)
+    @test db1 isa SQLite.DB
+    @test db2 isa SQLite.DB
     @test free(pool) == 0
     @test taken(pool) == 2
 
-    release!(pool, value1)
+    release!(pool, db1)
     @test free(pool) == 1
     @test taken(pool) == 1
-    release!(pool, value2)
+    release!(pool, db2)
     @test free(pool) == 2
     @test taken(pool) == 0
-    @test_throws ArgumentError release!(pool, value1)
+    @test_throws ArgumentError release!(pool, db1)
 
-    Threads.@threads for _ in 1:n
-        withresource(pool) do value
+    Threads.@threads for i in 1:n
+        withresource(pool) do db
+            df = DBInterface.execute(db, "SELECT * FROM users LIMIT $i") |> DataFrame
+            @info "Thread $(Threads.threadid()) - Number of rows: $(nrow(df))"
             sleep(0.1)
-            value
         end
     end
     @test free(pool) == n

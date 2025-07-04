@@ -1,7 +1,7 @@
 name = "ConnectionPools"
 uuid = "028224b0-1fcc-4ce4-9494-c68607c3a20e"
 authors = ["Abraham Jaimes"]
-version = "0.1.0"
+version = "0.1.1"
 
 [compat]
 julia = "1"

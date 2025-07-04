@@ -43,7 +43,7 @@ pool = ConnectionPool{SQLite.DB}(3)
 
 # Use a connection from the pool
 @time Threads.@threads for i in 1:20
-    withresource(pool) do db
+    withconnection(pool) do db
         df = DBInterface.execute(db, "SELECT * FROM users LIMIT $i") |> DataFrame
         @info "Thread $(Threads.threadid()) - Number of rows: $(nrow(df))"
     end
@@ -75,8 +75,8 @@ clean!(conn::Connection) = disconnect(conn.client)
 # Create a pool of connections with a maximum of 5 connections
 pool = ConnectionPool{Connection}(5)
 
-# Use a connection from the pool (using withresource is recommended)
-withresource(pool) do conn
+# Use a connection from the pool (using withconnection is recommended)
+withconnection(pool) do conn
     # ... use the connection ...
     get(conn.client, "key")
 end # The connection is automatically released back to the pool here

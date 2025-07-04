@@ -56,12 +56,12 @@ To release a resource back to the pool, use the release!(pool::ConnectionPool{T}
 release!(pool, resource)
 ```
 
-### Using withresource (Recommended)
+### Using withconnection (Recommended)
 
-The recommended way to work with pooled resources is to use the withresource(f::Function, pool::ConnectionPool{T}) function.  This function automatically acquires a resource, passes it to your function f, and ensures that the resource is released back to the pool, even if errors occur.
+The recommended way to work with pooled resources is to use the withconnection(f::Function, pool::ConnectionPool{T}) function.  This function automatically acquires a resource, passes it to your function f, and ensures that the resource is released back to the pool, even if errors occur.
 
 ```julia
-withresource(pool) do resource
+withconnection(pool) do resource
     # ... use the resource ...
 end # Resource is automatically released here
 ```

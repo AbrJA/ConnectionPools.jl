@@ -50,7 +50,7 @@ clean!(db::SQLite.DB) = DBInterface.close!(db)
     @test_throws ArgumentError release!(pool, db1)
 
     Threads.@threads for i in 1:n
-        withresource(pool) do db
+        withconnection(pool) do db
             df = DBInterface.execute(db, "SELECT * FROM users LIMIT $i") |> DataFrame
             @info "Thread $(Threads.threadid()) - Number of rows: $(nrow(df))"
             sleep(0.1)

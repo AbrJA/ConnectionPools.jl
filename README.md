@@ -28,7 +28,7 @@ At least `create` function is required.
 - **Generic:**  Works with any resource type `T`.  You define how to manage resources, and `ConnectionPools.jl` handles the rest.
 - **Thread-safe:** All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
 - **Memory-safe:** Handles resource allocation, and deallocation, limiting the number of resources in use concurrently.
-- **Convenient:** Function `withresource` simplifies the process of acquiring and using resources.
+- **Convenient:** Function `withconnection` simplifies the process of acquiring and using resources.
 
 ## Examples
 
@@ -83,10 +83,10 @@ clean!(db::SQLite.DB) = DBInterface.close!(db)
 pool = ConnectionPool{SQLite.DB}(5)
 ```
 
-- Use the connections from the pool (using withresource is recommended):
+- Use the connections from the pool (using withconnection is recommended):
 ```julia
 @time Threads.@threads for i in 1:20
-    withresource(pool) do db
+    withconnection(pool) do db
         df = DBInterface.execute(db, "SELECT * FROM users LIMIT $i") |> DataFrame
         @info "Thread $(Threads.threadid()) - Number of rows: $(nrow(df))"
     end
@@ -135,7 +135,7 @@ pool = ConnectionPool{Resource}(5)
 
 - Use a connection from the pool:
 ```julia
-withresource(pool) do resource
+withconnection(pool) do resource
     # ... use the connection ...
     get(resource.conn, "key")
 end # The connection is automatically released back to the pool here

@@ -8,7 +8,7 @@
 *   **Thread-safe:**  All operations are thread-safe, allowing concurrent access to the pool from multiple tasks.
 *   **Resource Management:**  Handles resource creation, validation, allocation, and deallocation, limiting the number of resources in use concurrently.
 *   **Automatic Cleanup:** Provides mechanisms for cleaning up resources when they are no longer needed (e.g., when the pool is drained or when resources fail validation).
-*   **Convenient `withresource` Function:** Simplifies the process of acquiring and using resources, ensuring they are automatically released back to the pool, even if errors occur.
+*   **Convenient `withconnection` Function:** Simplifies the process of acquiring and using resources, ensuring they are automatically released back to the pool, even if errors occur.
 
 ## Installation
 
@@ -28,8 +28,8 @@ create(::Type{RedisConnection}) = RedisConnection(host = "localhost", port = 637
 # Create a pool of connections with a maximum of 5 connections
 pool = ConnectionPool{RedisConnection}(5)
 
-# Use a connection from the pool (using withresource is recommended)
-withresource(pool) do conn
+# Use a connection from the pool (using withconnection is recommended)
+withconnection(pool) do conn
     ping(conn)
     # ... use the connection ...
 end # The connection is automatically released back to the pool here

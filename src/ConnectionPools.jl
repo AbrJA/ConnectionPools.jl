@@ -1,7 +1,10 @@
 module ConnectionPools
 
     import Base: show
-    export GenericPool, ConnectionPool, free, taken, limit, acquire!, release!, drain!, withresource, create, clean!, change!, check
+    export GenericPool, ConnectionPool,
+           free, taken, limit,
+           acquire!, release!, drain!, withconnection, withresource,
+           create, clean!, change!, check
 
     abstract type Pool{T} end
 
@@ -452,8 +455,12 @@ module ConnectionPools
         end
     end
 
+    function withresource(f, pool::Pool{T}) where T
+        @warn "withresource is deprecated, use withconnection instead"
+    end
+
     """
-    withresource(f::Function, pool::Pool{T}) where T
+    withconnection(f::Function, pool::Pool{T}) where T
 
     Execute a function with a resource from the pool, automatically handling acquisition and release.
 
@@ -488,12 +495,12 @@ module ConnectionPools
 
     pool = ConnectionPool{Connection}(3)
 
-    withresource(pool) do redis
+    withconnection(pool) do redis
         ping(redis.client)
     end
     ```
     """
-    function withresource(f, pool::Pool{T}) where T
+    function withconnection(f, pool::Pool{T}) where T
         resource = acquire!(pool)
         try
             return f(resource)
@@ -532,7 +539,7 @@ module ConnectionPools
 
     pool = ConnectionPool{Connection}(3)
 
-    withresource(pool) do redis
+    withconnection(pool) do redis
         ping(redis.client)
     end
 
